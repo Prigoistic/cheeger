@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fiedler"
+version = "0.0.1"
+description = "From-scratch differentiable spectral embedding for dense semantic segmentation"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Priyam Ghosh" }]
+dependencies = [
+    "torch>=2.2",
+    "numpy>=1.24",
+    "scipy>=1.10",      # oracle in tests only — never imported in the forward path
+    "matplotlib>=3.7",  # visualizers
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "ruff>=0.4"]
+data = ["pillow>=10.0", "tqdm>=4.66"]
+viz = ["tensorboard>=2.13", "spectral>=0.23"]   # hyperspectral datacube slicing
+dashboard = ["wandb>=0.16"]                      # optional cloud dashboard
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests", "scripts"]

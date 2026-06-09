@@ -1,0 +1,32 @@
+# Default experiment config (consumed by fiedler.engine.config).
+# Override per-experiment by copying this file and editing.
+
+experiment: spectral-head-baseline
+seed: 0
+
+data:
+  name: cityscapes
+  root: datasets/cityscapes
+  num_classes: 19
+  crop_size: [512, 1024]
+  batch_size: 4
+
+model:
+  backbone: unet
+  encoder: resnet34
+  head: spectral          # one of: conv | spectral
+  spectral:
+    k_eigenvecs: 16
+    laplacian: sym         # comb | sym | rw
+    affinity: learned      # gaussian | learned
+    knn: 16
+    graph_resolution: 64   # build the graph at HxW = 64x64, not full res
+
+loss:
+  cross_entropy: 1.0
+  spectral_consistency: 0.1   # Rayleigh-quotient regulariser weight
+
+optim:
+  lr: 0.001
+  weight_decay: 0.0001
+  epochs: 200
