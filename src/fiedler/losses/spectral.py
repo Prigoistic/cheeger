@@ -69,14 +69,20 @@ class CompositeLoss(nn.Module):
         total = self.w_ce * ce
         comps = {"ce": float(ce.detach())}
 
+        # spectral terms accept a single (prob, L) or per-image lists (batch) and
+        # average over the batch — the spectral head emits one graph per image.
         if self.w_rayleigh > 0 and prob_graph is not None and L is not None:
-            ray = rayleigh_consistency(prob_graph, L)
+            pairs = list(zip(prob_graph, L)) if isinstance(prob_graph, (list, tuple)) \
+                else [(prob_graph, L)]
+            ray = torch.stack([rayleigh_consistency(p, l) for p, l in pairs]).mean()
             total = total + self.w_rayleigh * ray
             comps["rayleigh"] = float(ray.detach())
 
         if self.w_bulk > 0 and response_h is not None and eigvals is not None \
                 and mp_n is not None and mp_d is not None:
-            bp = bulk_penalty(response_h, eigvals, mp_n, mp_d)
+            items = list(zip(response_h, eigvals)) if isinstance(response_h, (list, tuple)) \
+                else [(response_h, eigvals)]
+            bp = torch.stack([bulk_penalty(h, e, mp_n, mp_d) for h, e in items]).mean()
             total = total + self.w_bulk * bp
             comps["bulk"] = float(bp.detach())
 

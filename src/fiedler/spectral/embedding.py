@@ -60,11 +60,13 @@ class SpectralEmbedding(nn.Module):
 
     def forward(self, features: Tensor) -> dict[str, Tensor]:
         """Returns a dict: phi (N,k) embedding, eigvals (k,), eigvecs (N,k),
-        response (k,) — downstream losses consume eigvals/eigvecs directly."""
+        response (k,), laplacian (N,N) — downstream losses consume these directly
+        (the Rayleigh consistency term needs the Laplacian at graph resolution)."""
         metric = self.metric.abs() if self.metric is not None else None  # keep PSD
         W = gaussian_affinity(features, sigma=self.sigma, k=self.knn, metric=metric)
         L = laplacian(W, kind=self.kind)
         eigvals, eigvecs = smallest_k(L, self.k, eps=self.eig_eps)
         h = self.response(eigvals)
         phi = eigvecs * h.unsqueeze(0)
-        return {"phi": phi, "eigvals": eigvals, "eigvecs": eigvecs, "response": h}
+        return {"phi": phi, "eigvals": eigvals, "eigvecs": eigvecs,
+                "response": h, "laplacian": L}
