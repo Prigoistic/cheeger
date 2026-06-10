@@ -1,15 +1,15 @@
 name: Deploy blog to GitHub Pages
 
-# Publishes the static site in docs/ to GitHub Pages on every push to main.
-# The configure-pages step enables Pages automatically on first run, so no
-# manual settings toggle is needed.
+# Publishes the static site in docs/ to GitHub Pages.
+#
+# NOTE: this needs GitHub Actions, which is blocked while the account has a
+# billing lock. Until that is resolved, publish with the classic path instead:
+#   Settings -> Pages -> Source: Deploy from a branch -> main -> /docs
+# That route does not use Actions minutes. This workflow is left as manual-only
+# (workflow_dispatch) so it does not fail on every push; run it from the Actions
+# tab once billing is sorted.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
