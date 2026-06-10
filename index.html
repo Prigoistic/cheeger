@@ -129,7 +129,7 @@ MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, sv
   <h1>Learning to segment<br>by cutting graphs</h1>
   <p class="lede">A differentiable spectral embedding for dense semantic segmentation, built from
   first principles. We take a classical, training free idea and teach it to learn.</p>
-  <div class="meta">project: cheeger &nbsp;·&nbsp; core library: fiedler &nbsp;·&nbsp; status: research in progress</div>
+  <div class="meta">cheeger &nbsp;·&nbsp; core library: fiedler</div>
 </header>
 
 <article>
@@ -243,9 +243,9 @@ MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, sv
   sign constantly. In other words the Laplacian gives you a notion of frequency on a graph. Low
   eigenvalues are low frequency, and low frequency is where the large scale structure lives.</p>
 
-  <p>That last point is the one to hold onto. If an image has a few coherent regions, the graph
+  <p>That last point is the one that matters. If an image has a few coherent regions, the graph
   built from it has a few low frequency modes, and those modes are exactly the regions. Reading the
-  segmentation off the bottom of the spectrum is the whole game.</p>
+  segmentation off the bottom of the spectrum is the central idea.</p>
 </section>
 
 <!-- 4 -->
@@ -308,7 +308,7 @@ MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, sv
 
   <p>Strip away the details and every one of these methods does the same four steps. Fix an affinity
   kernel on the features. Form the normalized Laplacian. Take the bottom \(k\) eigenvectors. Cluster.
-  It works, and it is a strong baseline. It is also where the cracks show.</p>
+  It works, and it is a strong baseline. It is also where its limitations appear.</p>
 </section>
 
 <!-- 6 -->
@@ -545,16 +545,16 @@ MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, sv
   and numpy appear only as oracles in the tests, never in the forward path. The math is ours, the
   plumbing is borrowed where borrowing is the sensible call.</p>
 
-  <p><strong>Lanczos for scale.</strong> A dense eigendecomposition is cubic and out of the question
-  past a few thousand nodes. We wrote a from scratch Lanczos solver that returns only the bottom few
+  <p><strong>Lanczos for scale.</strong> A dense eigendecomposition is cubic and infeasible past a
+  few thousand nodes. We wrote a from scratch Lanczos solver that returns only the bottom few
   eigenvectors through matrix vector products, so a sparse graph makes the solve close to linear. It
   matches the dense answer to machine precision and runs at sixty five thousand nodes in under half a
-  second, where a dense matrix would need thirty four gigabytes just to exist.</p>
+  second, where a dense matrix would need thirty four gigabytes to hold in memory.</p>
 
   <p><strong>A training detail worth recording.</strong> The consistency loss has to be warmed up. At
-  the start of training the graph is nearly uniform, so a smooth prediction is the same as a uniform
-  one, and the loss happily pins the model to a blank answer. Switch it on only after the features
-  organize and it helps instead of hurts. Small lesson, real consequence.</p>
+  the start of training the graph is nearly uniform, so a smooth prediction is indistinguishable from
+  a uniform one, and the term pins the model to a blank answer. Introduced only after the features
+  organize, it helps rather than hurts. A small detail with a real effect on convergence.</p>
 
   <figure>
     <img src="assets/cheeger_snapshot.png" alt="cheeger predictions and spectral internals">
@@ -580,11 +580,11 @@ MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, sv
     almost at once. The spectral head sits on a plateau, then breaks through.</figcaption>
   </figure>
 
-  <p>The two heads behave very differently, and the difference is the interesting part. The
+  <p>The two heads behave very differently, and the difference is informative. The
   convolution labels each pixel on its own, so it fits immediately. The spectral head has to earn its
   representation. At the start the graph is nearly uniform and the bottom eigenvectors carry no usable
   signal, so the loss barely moves. Once the backbone organizes its features the graph clusters, the
-  eigenvectors snap into place, and the model breaks through. It has to build the structure before it
+  bottom eigenvectors become informative, and the model breaks through. It has to build the structure before it
   can use it. This is also why the consistency loss is warmed up rather than switched on at step
   zero.</p>
 
@@ -664,7 +664,7 @@ MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, sv
 
 <div class="footer">
   cheeger · a differentiable spectral embedding for dense segmentation · built from scratch in pytorch<br>
-  the core library is named fiedler, after the vector that started all of this.
+  the core library is named fiedler, after the eigenvector at the centre of the method.
 </div>
 
 </div>
