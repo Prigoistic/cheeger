@@ -76,6 +76,8 @@ on CPU/MPS; move to a GPU only for full Cityscapes training.
 - [x] P0 rigor: invariant toolkit, hardened edge/numerical tests, parallel stress fuzzer
 - [x] **Phase 1** — differentiable eigensolver (broadened gradients, gradcheck-verified),
       learned `h_θ(λ)` + Marchenko–Pastur noise floor, `SpectralEmbedding` module
-- [ ] Phase 2 — Rayleigh spectral-consistency loss + segmentation metrics (mIoU, boundary-F)
+- [x] **Phase 2** — segmentation metrics (mIoU/per-class/accuracies + Boundary-IoU/BF/trimap,
+      sklearn-validated) and losses (CE + class weights + optional OHEM/Lovász;
+      Rayleigh spectral-consistency + MP `bulk_penalty` via `CompositeLoss`)
 - [ ] Phase 3 — U-Net backbone + spectral/conv heads + Cityscapes
 - [ ] Phase 4 — training engine + benchmarks
