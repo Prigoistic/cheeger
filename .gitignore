@@ -36,3 +36,9 @@ results/**
 .pytest_cache/
 .ruff_cache/
 .DS_Store
+
+# stray local downloads / archives (never part of the project)
+*.dmg
+*.pkg
+*.zip
+*.tar.gz
