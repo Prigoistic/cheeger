@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cheeger — learning to segment by cutting graphs</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+<script>
+MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+  :root{
+    --bg:#FBFAF6; --ink:#23231f; --muted:#6f6d64; --line:#e6e3da;
+    --indigo:#3C3489; --teal:#0a5a49; --coral:#9c3b1b; --amber:#9a6b12;
+    --paper:#ffffff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Source Serif 4", Georgia, serif; font-size:19px; line-height:1.72;
+    -webkit-font-smoothing:antialiased; font-optical-sizing:auto;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 26px}
+
+  /* hero */
+  header.hero{padding:92px 0 38px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"JetBrains Mono",monospace; font-size:12.5px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--indigo); margin-bottom:22px}
+  h1{font-family:"Playfair Display",serif; font-weight:800; font-size:60px; line-height:1.04;
+    letter-spacing:-.01em; margin:0 0 18px}
+  .lede{font-size:21px; color:#43423b; margin:0; max-width:36em}
+  .meta{font-family:"JetBrains Mono",monospace; font-size:12.5px; color:var(--muted);
+    margin-top:30px; letter-spacing:.03em}
+
+  /* typography */
+  article{padding:8px 0 90px}
+  section{padding:40px 0 8px}
+  h2{font-family:"Playfair Display",serif; font-weight:700; font-size:33px; line-height:1.15;
+    margin:34px 0 8px; letter-spacing:-.01em}
+  h2 .num{font-family:"JetBrains Mono",monospace; font-size:14px; color:var(--indigo);
+    font-weight:400; display:block; margin-bottom:8px; letter-spacing:.12em}
+  h3{font-family:"Playfair Display",serif; font-weight:600; font-size:23px; margin:30px 0 6px}
+  p{margin:16px 0}
+  a{color:var(--indigo); text-decoration:none; border-bottom:1px solid #cfcbe6}
+  strong{font-weight:600}
+  em.term{font-style:italic; color:var(--teal); font-weight:600}
+
+  /* lead callout */
+  .thesis{
+    margin:30px 0; padding:26px 30px; background:var(--paper);
+    border:1px solid var(--line); border-left:3px solid var(--indigo); border-radius:10px;
+    font-size:20px; line-height:1.6;
+  }
+  .thesis b{color:var(--indigo)}
+
+  blockquote{margin:28px 0; padding:6px 0 6px 26px; border-left:3px solid var(--teal);
+    font-style:italic; color:#3a392f; font-size:20px}
+
+  /* figures */
+  figure{margin:38px 0; text-align:center}
+  figure svg{max-width:100%; height:auto}
+  figure img{max-width:100%; border:1px solid var(--line); border-radius:10px; background:#fff}
+  figcaption{font-size:14px; color:var(--muted); margin-top:12px; font-style:italic; line-height:1.5;
+    max-width:34em; margin-left:auto; margin-right:auto}
+
+  /* math blocks spacing */
+  mjx-container[display="true"]{margin:22px 0 !important}
+
+  /* code + mono */
+  code{font-family:"JetBrains Mono",monospace; font-size:.82em; background:#f1efe7;
+    padding:1px 6px; border-radius:5px}
+  pre{font-family:"JetBrains Mono",monospace; font-size:13.5px; line-height:1.7; background:#1d1b26;
+    color:#e7e5f2; padding:18px 20px; border-radius:10px; overflow-x:auto}
+  pre .k{color:#b3a8f0} pre .c{color:#7d7a90} pre .s{color:#9ad1b8}
+
+  /* progress tracker */
+  .phases{margin:26px 0; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--paper)}
+  .phase{display:flex; gap:14px; align-items:flex-start; padding:14px 20px; border-top:1px solid var(--line)}
+  .phase:first-child{border-top:none}
+  .dot{width:11px; height:11px; border-radius:50%; margin-top:8px; flex:none}
+  .done .dot{background:var(--teal)} .now .dot{background:var(--amber)} .todo .dot{background:#cfccc2}
+  .phase .t{font-weight:600}
+  .phase .d{color:var(--muted); font-size:15.5px}
+  .tag{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.08em; margin-left:auto;
+    padding:2px 9px; border-radius:20px; white-space:nowrap}
+  .done .tag{background:#e2f1ec; color:var(--teal)}
+  .now .tag{background:#f7eed8; color:var(--amber)}
+  .todo .tag{background:#efece4; color:var(--muted)}
+
+  /* equation breakdown cards */
+  .eqgrid{margin:24px 0; display:flex; flex-direction:column; gap:14px}
+  .eqcard{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:18px 22px}
+  .eqcard .name{font-family:"Playfair Display",serif; font-weight:600; font-size:19px}
+  .eqcard .tagx{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--amber); background:#f7eed8; padding:2px 9px; border-radius:20px; margin-left:8px}
+  .eqcard .why{color:#43423b; font-size:16.5px; margin-top:6px; line-height:1.62}
+  .eqcard .src{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--muted); margin-top:10px}
+
+  /* references */
+  .refs ol{padding-left:24px; margin:14px 0 0}
+  .refs li{font-size:15px; line-height:1.55; margin:9px 0; color:#3a392f}
+  .refs li b{color:var(--ink)}
+  sup.cite{font-size:.66em; color:var(--indigo); font-family:"JetBrains Mono",monospace; padding-left:1px}
+
+  hr.s{border:none; border-top:1px solid var(--line); margin:50px 0}
+  .footer{padding:40px 0 80px; color:var(--muted); font-family:"JetBrains Mono",monospace;
+    font-size:12.5px; letter-spacing:.03em; border-top:1px solid var(--line)}
+
+  /* small helpers for svg text */
+  text{font-family:"Source Serif 4",serif}
+  .svg-lbl{font-size:13px; fill:var(--ink)}
+  .svg-sub{font-size:11px; fill:var(--muted); font-family:"JetBrains Mono",monospace}
+  .svg-h{font-family:"Playfair Display",serif; font-size:14px; font-weight:600}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">spectral graph theory · dense segmentation</div>
+  <h1>Learning to segment<br>by cutting graphs</h1>
+  <p class="lede">A differentiable spectral embedding for dense semantic segmentation, built from
+  first principles. We take a classical, training free idea and teach it to learn.</p>
+  <div class="meta">project: cheeger &nbsp;·&nbsp; core library: fiedler &nbsp;·&nbsp; status: research in progress</div>
+</header>
+
+<article>
+
+<!-- 1 -->
+<section id="our-work">
+  <h2><span class="num">01 — our work</span>What we are building</h2>
+
+  <p>A segmentation model usually ends with a small convolution that labels each pixel on its own.
+  It has no built in sense of which pixels belong together. <strong>cheeger</strong> replaces that
+  final step with something that reasons about the whole image at once. It treats the network's
+  feature map as a graph, where every pixel is a node and edges connect pixels that look alike, and
+  it segments the image by finding good cuts in that graph. The tool for finding those cuts is
+  spectral graph theory. The entire path is differentiable, so it trains end to end as a head on a
+  U-Net.</p>
+
+  <div class="thesis">
+    Here is the idea in one line. Every spectral segmentation method before us applies a
+    <b>fixed, hand chosen</b> weighting to the graph's eigenvectors. We replace that fixed choice
+    with a <b>learned function \(h_\theta(\lambda)\)</b>, supervised by the segmentation labels,
+    trained through a differentiable eigensolver, with the noise floor set by random matrix theory
+    instead of a guess.
+  </div>
+
+  <p>So the contribution is not a new backbone or a bigger model. It is a different way of building
+  the segmentation representation itself. Classical spectral clustering fixes the graph and reads
+  off its eigenvectors. We let the network learn the graph, learn how to weight the spectrum, and
+  learn it all against real labels. The sections below build up to why that matters, starting from
+  the groundwork.</p>
+
+  <figure>
+    <!-- pipeline -->
+    <svg width="760" height="210" viewBox="0 0 760 210" role="img" aria-label="cheeger pipeline">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M2 1 L8 5 L2 9" fill="none" stroke="#b7b3a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <g>
+        <rect x="6"   y="74" width="92" height="58" rx="9" fill="#fff" stroke="#e0ddd3"/>
+        <text class="svg-lbl" x="52"  y="98"  text-anchor="middle">image</text>
+        <text class="svg-sub" x="52"  y="116" text-anchor="middle">H×W×3</text>
+
+        <rect x="120" y="62" width="96" height="82" rx="9" fill="#eef0fb" stroke="#cfd2f0"/>
+        <text class="svg-lbl" x="168" y="98"  text-anchor="middle">U-Net</text>
+        <text class="svg-sub" x="168" y="116" text-anchor="middle">features</text>
+
+        <rect x="238" y="62" width="104" height="82" rx="9" fill="#e7f3ee" stroke="#bfe0d2"/>
+        <text class="svg-lbl" x="290" y="92"  text-anchor="middle">graph +</text>
+        <text class="svg-lbl" x="290" y="110" text-anchor="middle">Laplacian</text>
+        <text class="svg-sub" x="290" y="127" text-anchor="middle">L_sym</text>
+
+        <rect x="364" y="62" width="110" height="82" rx="9" fill="#efedfb" stroke="#d4cff0"/>
+        <text class="svg-lbl" x="419" y="92"  text-anchor="middle">eigensolver</text>
+        <text class="svg-sub" x="419" y="110" text-anchor="middle">bottom-k (U,λ)</text>
+        <text class="svg-sub" x="419" y="126" text-anchor="middle">Lanczos</text>
+
+        <rect x="496" y="62" width="104" height="82" rx="9" fill="#fbf0e9" stroke="#eccdb9"/>
+        <text class="svg-lbl" x="548" y="92"  text-anchor="middle">response</text>
+        <text class="svg-sub" x="548" y="110" text-anchor="middle">Φ = U·h_θ(λ)</text>
+        <text class="svg-sub" x="548" y="126" text-anchor="middle">learned</text>
+
+        <rect x="662" y="74" width="92" height="58" rx="9" fill="#fff" stroke="#e0ddd3"/>
+        <text class="svg-lbl" x="708" y="98"  text-anchor="middle">seg mask</text>
+        <text class="svg-sub" x="708" y="116" text-anchor="middle">H×W×K</text>
+
+        <line x1="98"  y1="103" x2="118" y2="103" stroke="#cdcabd" marker-end="url(#ar)"/>
+        <line x1="216" y1="103" x2="236" y2="103" stroke="#cdcabd" marker-end="url(#ar)"/>
+        <line x1="342" y1="103" x2="362" y2="103" stroke="#cdcabd" marker-end="url(#ar)"/>
+        <line x1="474" y1="103" x2="494" y2="103" stroke="#cdcabd" marker-end="url(#ar)"/>
+        <line x1="600" y1="103" x2="660" y2="103" stroke="#cdcabd" marker-end="url(#ar)"/>
+
+        <text class="svg-sub" x="380" y="178" text-anchor="middle" fill="#9a6b12">the green, purple and orange blocks are learned and differentiable end to end</text>
+        <path d="M238 158 H600" stroke="#e7c98f" stroke-dasharray="4 3" fill="none"/>
+        <path d="M238 158 V150 M600 158 V150" stroke="#e7c98f" fill="none"/>
+      </g>
+    </svg>
+    <figcaption>The full path. A U-Net produces features, we build a graph and its Laplacian from
+    them, solve for the bottom eigenvectors, weight them with a learned response, and read off a
+    segmentation. Everything from the graph onward carries gradients.</figcaption>
+  </figure>
+</section>
+
+<hr class="s">
+
+<!-- 2 -->
+<section id="groundwork">
+  <h2><span class="num">02 — groundwork</span>What you need first</h2>
+  <p>To see why a learned spectrum is the right idea, three things have to be on the table. What a
+  graph Laplacian is. What its eigenvectors tell you about the graph. And how people already use
+  those eigenvectors to segment images. Once those are clear, the gap we are filling becomes
+  obvious, and so does our way of filling it.</p>
+</section>
+
+<!-- 3 -->
+<section id="sgt">
+  <h2><span class="num">03 — background</span>Spectral graph theory, briefly</h2>
+
+  <p>A graph is a set of nodes joined by weighted edges. Two matrices describe it. The
+  <em class="term">adjacency</em> \(W\), where \(W_{ij}\) is the weight of the edge between nodes
+  \(i\) and \(j\), and the <em class="term">degree</em> \(D\), a diagonal matrix holding each node's
+  total edge weight. From these comes the object the whole field rests on, the
+  <em class="term">graph Laplacian</em>.</p>
+
+  $$ L = D - W, \qquad L_{\text{sym}} = I - D^{-1/2} W D^{-1/2}. $$
+
+  <p>The Laplacian looks plain but its eigenvectors carry the global shape of the graph. A few facts
+  make this concrete. The smallest eigenvalue is always zero. The number of zero eigenvalues equals
+  the number of connected pieces. And as you climb from the small eigenvalues to the large ones, the
+  eigenvectors go from smooth functions that barely change across edges to rough functions that flip
+  sign constantly. In other words the Laplacian gives you a notion of frequency on a graph. Low
+  eigenvalues are low frequency, and low frequency is where the large scale structure lives.</p>
+
+  <p>That last point is the one to hold onto. If an image has a few coherent regions, the graph
+  built from it has a few low frequency modes, and those modes are exactly the regions. Reading the
+  segmentation off the bottom of the spectrum is the whole game.</p>
+</section>
+
+<!-- 4 -->
+<section id="fiedler">
+  <h2><span class="num">04 — background</span>The Fiedler vector</h2>
+
+  <p>The second smallest eigenvalue \(\lambda_2\) has a name, the
+  <em class="term">algebraic connectivity</em>. It measures how hard the graph is to cut in two. Its
+  eigenvector, the <em class="term">Fiedler vector</em>, assigns a single number to every node, and
+  the sign of that number tells you which side of the best cut the node sits on. Threshold one
+  eigenvector at zero and the graph falls into two natural pieces along its weakest seam.</p>
+
+  <blockquote>This is the cleanest bridge between linear algebra and clustering. And it is where the
+  project gets its name. Cheeger's inequality bounds the quality of the best possible cut, the
+  Cheeger constant, by the Fiedler value \(\lambda_2\). Segmentation is cutting. The spectrum tells
+  you where to cut.</blockquote>
+
+  <figure>
+    <svg width="520" height="220" viewBox="0 0 520 220" role="img" aria-label="Fiedler partition">
+      <!-- two clusters -->
+      <g stroke="#cdcabd" stroke-width="1">
+        <line x1="120" y1="70" x2="170" y2="50"/><line x1="120" y1="70" x2="160" y2="110"/>
+        <line x1="170" y1="50" x2="160" y2="110"/><line x1="160" y1="110" x2="110" y2="150"/>
+        <line x1="120" y1="70" x2="110" y2="150"/>
+        <line x1="350" y1="70" x2="400" y2="55"/><line x1="350" y1="70" x2="360" y2="120"/>
+        <line x1="400" y1="55" x2="360" y2="120"/><line x1="360" y1="120" x2="410" y2="150"/>
+        <line x1="400" y1="55" x2="410" y2="150"/>
+        <line x1="160" y1="110" x2="360" y2="120" stroke-dasharray="4 4"/>
+      </g>
+      <g>
+        <circle cx="120" cy="70" r="12" fill="#3C3489"/><circle cx="170" cy="50" r="12" fill="#3C3489"/>
+        <circle cx="160" cy="110" r="12" fill="#3C3489"/><circle cx="110" cy="150" r="12" fill="#3C3489"/>
+        <circle cx="350" cy="70" r="12" fill="#0a5a49"/><circle cx="400" cy="55" r="12" fill="#0a5a49"/>
+        <circle cx="360" cy="120" r="12" fill="#0a5a49"/><circle cx="410" cy="150" r="12" fill="#0a5a49"/>
+      </g>
+      <text class="svg-sub" x="150" y="195" text-anchor="middle" fill="#3C3489">Fiedler &lt; 0</text>
+      <text class="svg-sub" x="385" y="195" text-anchor="middle" fill="#0a5a49">Fiedler &gt; 0</text>
+      <text class="svg-sub" x="260" y="100" text-anchor="middle">weakest seam</text>
+    </svg>
+    <figcaption>The Fiedler vector colours each node by sign. The cut falls along the few weak edges
+    between the two groups, exactly where you would draw the boundary by eye.</figcaption>
+  </figure>
+</section>
+
+<!-- 5 -->
+<section id="norm">
+  <h2><span class="num">05 — the norm</span>From partitioning to segmentation</h2>
+
+  <p>Two pieces is one eigenvector. For more pieces you take the bottom \(k\) eigenvectors together
+  and treat them as coordinates. Each node becomes a point in a \(k\) dimensional
+  <em class="term">spectral embedding</em>, similar nodes land near each other, and a simple
+  clustering step recovers the regions. This is spectral clustering, and it is the standard recipe.</p>
+
+  <p>For images the classic version is Shi and Malik's normalized cuts from 2000.<sup class="cite">[3]</sup>
+  Pixels are nodes, edges measure brightness and proximity, and the bottom eigenvectors of the
+  normalized Laplacian give the segments. The modern version swaps hand designed pixel similarity for
+  deep features. Build the graph from a vision transformer's patch features, as in the DINO line of
+  work,<sup class="cite">[15]</sup> and the bottom eigenvectors fall out as clean object masks with no
+  labels at all. Deep spectral methods make this explicit as a segmentation baseline.<sup class="cite">[16]</sup></p>
+
+  <p>Strip away the details and every one of these methods does the same four steps. Fix an affinity
+  kernel on the features. Form the normalized Laplacian. Take the bottom \(k\) eigenvectors. Cluster.
+  It works, and it is a strong baseline. It is also where the cracks show.</p>
+</section>
+
+<!-- 6 -->
+<section id="flaws">
+  <h2><span class="num">06 — the gap</span>Where the standard recipe falls short</h2>
+
+  <p>Four limitations, and each one points straight at a design choice we make differently.</p>
+
+  <p><strong>The graph is fixed.</strong> The affinity kernel, usually a Gaussian with a bandwidth
+  \(\sigma\) chosen by hand, decides what counts as similar. It is set once and never adapts to the
+  task.</p>
+
+  <p><strong>The spectral weighting is ad hoc.</strong> Once you have the eigenvectors, how do you
+  weight them. Keep the first \(K\) and drop the rest. Raise the eigenvalues to some power. Every
+  method picks a fixed rule, and none of them learns it.</p>
+
+  <p><strong>The noise floor is a guess.</strong> Somewhere in the spectrum signal ends and noise
+  begins. The usual answer is a heuristic, for instance treat the last ten percent of eigenvalues as
+  noise. That number is not measured, it is assumed.</p>
+
+  <p><strong>It does not train, and it does not scale.</strong> Backpropagating through an
+  eigendecomposition multiplies gradients by \(1/(\lambda_i - \lambda_j)\). When two eigenvalues come
+  close, which is exactly what happens at a segment boundary, that term explodes. And a dense
+  eigendecomposition costs \(O(n^3)\). A modest \(64\times 64\) feature map is already 4096 nodes,
+  where one solve takes several seconds.</p>
+</section>
+
+<!-- 7 -->
+<section id="novelty">
+  <h2><span class="num">07 — our novelty</span>One operator behind all of it</h2>
+
+  <p>Start from an observation that ties the prior work together. Tempering the eigenvalues,
+  truncating at \(K\), pruning channels, weighting wavelet bands. These look like different tricks,
+  but they are the same operation. Each one applies a function \(h(\lambda)\) to the eigenbasis of a
+  graph operator. They differ only in which fixed \(h\) they happen to pick.</p>
+
+  <blockquote>If every method is a fixed choice of \(h(\lambda)\), then the natural move is to stop
+  choosing and start learning. Make \(h_\theta(\lambda)\) a small network on the eigenvalues, and
+  train it against the labels.</blockquote>
+
+  <p>The embedding becomes \(\Phi = U \,\mathrm{diag}\big(h_\theta(\lambda)\big)\), where \(U\) holds
+  the bottom eigenvectors and \(h_\theta\) decides how much each one matters. The network learns the
+  spectral representation that helps segmentation, rather than inheriting one from a paper. Three
+  more pieces make this real.</p>
+
+  <h3>A differentiable eigensolver that survives degeneracy</h3>
+  <p>The exploding \(1/(\lambda_i - \lambda_j)\) is the thing that stops people training through the
+  spectrum. We replace it with a broadened version that stays finite when eigenvalues collide. It
+  behaves like the true gradient when eigenvalues are well separated and saturates smoothly when they
+  are not. This is what keeps training stable at boundaries, which is the one place segmentation
+  cares about most.</p>
+
+  <h3>A noise floor from first principles</h3>
+  <p>Instead of guessing where noise starts, we read it from random matrix theory. The
+  Marchenko Pastur law gives the exact edge of the spectrum that pure noise can produce for a random
+  feature matrix. We regularize \(h_\theta\) to fall to zero below that edge. The arbitrary ten
+  percent becomes an actual estimate.</p>
+
+  <h3>A graph the network designs</h3>
+  <p>The affinity is learned too. A metric on the feature channels and a learnable bandwidth let the
+  network decide what makes two pixels similar, jointly with everything else. And a loss closes the
+  loop, a Rayleigh quotient consistency term that rewards predictions which respect the graph,
+  a smoothness prior without the cost of a separate refinement stage.</p>
+
+  <figure>
+    <svg width="560" height="250" viewBox="0 0 560 250" role="img" aria-label="fixed versus learned spectral response">
+      <line x1="60" y1="210" x2="520" y2="210" stroke="#cdcabd"/>
+      <line x1="60" y1="210" x2="60" y2="30" stroke="#cdcabd"/>
+      <text class="svg-sub" x="290" y="238" text-anchor="middle">eigenvalue  λ  (low frequency → high)</text>
+      <text class="svg-sub" x="30" y="120" text-anchor="middle" transform="rotate(-90 30 120)">weight  h(λ)</text>
+
+      <!-- truncation: step -->
+      <path d="M60 60 H230 V206 H520" fill="none" stroke="#9a6b12" stroke-width="2" stroke-dasharray="5 4"/>
+      <text class="svg-sub" x="150" y="52" fill="#9a6b12">truncation  (hard cutoff)</text>
+
+      <!-- tempering: power curve -->
+      <path d="M60 70 Q220 150 520 195" fill="none" stroke="#0a5a49" stroke-width="2" stroke-dasharray="5 4"/>
+      <text class="svg-sub" x="300" y="135" fill="#0a5a49">tempering  (fixed power)</text>
+
+      <!-- ours: smooth learned -->
+      <path d="M60 50 C150 60 200 120 250 120 C330 120 360 175 520 200" fill="none" stroke="#3C3489" stroke-width="3.2"/>
+      <text class="svg-h" x="360" y="70" fill="#3C3489">h_θ(λ)  learned</text>
+
+      <!-- MP edge marker -->
+      <line x1="430" y1="40" x2="430" y2="210" stroke="#c9b27a" stroke-dasharray="3 3"/>
+      <text class="svg-sub" x="430" y="34" text-anchor="middle" fill="#9a6b12">MP noise edge</text>
+    </svg>
+    <figcaption>Prior methods are fixed shapes of \(h(\lambda)\), a hard cutoff or a fixed power
+    curve. We learn the shape, and anchor where it should vanish with the Marchenko Pastur noise
+    edge rather than a heuristic.</figcaption>
+  </figure>
+</section>
+
+<!-- 8 -->
+<section id="diffspectral">
+  <h2><span class="num">08 — our work</span>What differentiable spectral theory means</h2>
+
+  <p>Spectral graph theory is old and settled. The part that is new, and that the whole project leans
+  on, is making it <em class="term">differentiable</em>. The idea is to treat the eigendecomposition
+  itself as a layer. Features go in, eigenvectors come out, and a gradient travels back through the
+  solve to tell the earlier layers how to reshape the graph. The spectrum stops being a fixed
+  preprocessing step and becomes something the network trains.</p>
+
+  <p>This is routine until you write the gradient down. First order perturbation theory says that when
+  the matrix \(A = U\Lambda U^\top\) changes by \(dA\), each eigenvector moves by a sum over all the
+  others, weighted by the inverse gap between eigenvalues.</p>
+
+  $$ du_i = \sum_{j \neq i} \frac{u_j^\top (dA)\, u_i}{\lambda_i - \lambda_j}\; u_j $$
+
+  <p>The \(1/(\lambda_i - \lambda_j)\) is the whole problem. When two eigenvalues approach each other
+  the gradient diverges. In segmentation this is not a rare edge case, it is the common case.
+  Eigenvalues crowd together exactly where regions meet, so the gradient blows up at the boundaries
+  the model most needs to learn. This one term is why most segmentation work treats eigenvectors as a
+  fixed, precomputed input and never trains through them.<sup class="cite">[13][14]</sup></p>
+
+  <p>Differentiable spectral theory, as we use the phrase, is the set of choices that make this
+  gradient usable. A backward pass that stays finite under degeneracy. A forward pass that computes
+  only the few eigenvectors you need so it scales. And a spectral filter the gradient can actually
+  shape. The next section writes these out, and flags the pieces that are not standard in
+  segmentation.</p>
+</section>
+
+<!-- 9 -->
+<section id="math">
+  <h2><span class="num">09 — our work</span>The mathematical grounding</h2>
+
+  <p>Here is the model written out. We build a learned affinity between feature vectors \(f_i\),
+  using a metric \(M\) and a bandwidth \(\sigma\) that are both learned.</p>
+  $$ W_{ij} = \exp\!\left(-\,\frac{(f_i - f_j)^\top M (f_i - f_j)}{2\sigma^2}\right) $$
+
+  <p>From it we form the symmetric normalized Laplacian, whose spectrum sits in \([0,2]\) and which is
+  symmetric and positive semidefinite, the right object for a stable solver.</p>
+  $$ L_{\text{sym}} = I - D^{-1/2} W D^{-1/2} $$
+
+  <p>We solve for the bottom \(k\) eigenpairs \((\lambda, U)\). The forward pass uses Lanczos so it
+  scales. The backward pass is where the degeneracy fix lives. Given upstream gradients on the
+  eigenvalues and eigenvectors, the gradient with respect to the matrix is</p>
+  $$ \bar A = U\Big(\mathrm{diag}(\bar g_\lambda) + F \circ (U^\top \bar g_U)\Big)U^\top,
+     \qquad F_{ij} = \frac{\lambda_j - \lambda_i}{(\lambda_j - \lambda_i)^2 + \varepsilon^2}. $$
+
+  <p>The \(\varepsilon\) is the broadening. As \(\varepsilon \to 0\) this is the exact eigenvector
+  gradient. For \(\varepsilon > 0\) the term stays bounded by \(1/2\varepsilon\) even when the gap
+  closes. The embedding then weights the eigenvectors with the learned response, and the noise edge
+  comes from the aspect ratio of the feature matrix.</p>
+  $$ \Phi = U\,\mathrm{diag}\big(h_\theta(\lambda)\big), \qquad
+     \lambda_{+} = \sigma^2\Big(1 + \sqrt{d/n}\,\Big)^2 $$
+
+  <p>Training combines the usual pixel loss with two spectral terms. A Rayleigh quotient that
+  measures how rough the prediction is on the graph, and a penalty that pushes the learned response
+  to zero inside the noise bulk.</p>
+  $$ \mathcal{L} = \mathcal{L}_{\text{CE}}
+     \;+\; \alpha \cdot \frac{1}{K}\sum_c \frac{p_c^\top L\, p_c}{p_c^\top p_c}
+     \;+\; \beta \cdot \text{bulk}(h_\theta,\lambda) $$
+
+  <h3>The equations that are not standard in segmentation</h3>
+  <p>Most of the pieces above are textbook. A few are not, at least not in this field. These are the
+  ones doing the real work, borrowed from random matrix theory, numerical linear algebra and graph
+  signal processing rather than from the segmentation literature.</p>
+
+  <div class="eqgrid">
+
+    <div class="eqcard">
+      <div class="name">Broadened eigenvector gradient <span class="tagx">numerical linear algebra</span></div>
+      $$ F_{ij} = \frac{\lambda_j - \lambda_i}{(\lambda_j - \lambda_i)^2 + \varepsilon^2} $$
+      <div class="why">A regularized stand in for the singular \(1/(\lambda_j-\lambda_i)\). The shape
+      is a Lorentzian, the same trick physics uses to turn a singular response into a finite peak. It
+      equals the true gradient when eigenvalues are well separated and saturates at \(1/2\varepsilon\)
+      when they collide. This is the single change that lets us backpropagate through an
+      eigendecomposition at segment boundaries.</div>
+      <div class="src">refs: matrix backpropagation [13] · backprop friendly eigendecomposition [14]</div>
+    </div>
+
+    <div class="eqcard">
+      <div class="name">Marchenko Pastur noise edge <span class="tagx">random matrix theory</span></div>
+      $$ \lambda_{+} = \sigma^2\Big(1 + \sqrt{d/n}\,\Big)^2 $$
+      <div class="why">The largest eigenvalue that a pure noise feature matrix can produce, for \(n\)
+      samples and \(d\) channels. Above it sits signal, below it sits noise, by the BBP transition.
+      This is everyday mathematics in physics and quantitative finance and almost unseen in
+      segmentation. We use it to set the noise floor that prior work picks by hand, then regularize the
+      learned filter to vanish below the edge.</div>
+      <div class="src">refs: Marchenko Pastur 1967 [9] · BBP transition [10]</div>
+    </div>
+
+    <div class="eqcard">
+      <div class="name">Learned spectral response <span class="tagx">graph signal processing</span></div>
+      $$ \Phi = U\,\mathrm{diag}\big(h_\theta(\lambda)\big) $$
+      <div class="why">A filter on graph frequencies, in the lineage of spectral graph networks, but
+      learned per image and supervised by dense labels. Earlier spectral segmentation fixes this
+      weighting in advance, a hard cutoff or a fixed power. Making \(h_\theta\) a small trained network
+      on the eigenvalues is what turns four separate heuristics into one learned operator.</div>
+      <div class="src">refs: spectral networks [11] · ChebNet [12]</div>
+    </div>
+
+    <div class="eqcard">
+      <div class="name">Rayleigh quotient consistency <span class="tagx">spectral clustering</span></div>
+      $$ R(p) = \frac{p^\top L\, p}{p^\top p} $$
+      <div class="why">This is the relaxed normalized cut objective, the quantity spectral clustering
+      minimizes to find a partition. We repurpose it as a loss on the predicted segmentation, where it
+      measures how rough the prediction is on the graph. It acts as a global smoothness prior, the role
+      a conditional random field usually plays, without the separate inference stage.</div>
+      <div class="src">refs: normalized cuts [3] · spectral clustering tutorial [5]</div>
+    </div>
+
+    <div class="eqcard">
+      <div class="name">Krylov subspace bottom-k <span class="tagx">numerical linear algebra</span></div>
+      $$ \mathcal{K}_m(L, v) = \mathrm{span}\{v,\, Lv,\, L^2 v,\, \dots,\, L^{m-1} v\} $$
+      <div class="why">The Lanczos method builds this small subspace from matrix vector products and
+      reads the bottom eigenvectors off a tiny projected matrix. A 1950 idea, standard in scientific
+      computing, rarely paired with automatic differentiation in vision. It is why the spectral head
+      can run on a graph with tens of thousands of nodes.</div>
+      <div class="src">ref: Lanczos 1950 [8]</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="arch">
+  <h2><span class="num">10 — our work</span>Architecture and the choices behind it</h2>
+
+  <p><strong>A swappable head.</strong> We keep a single U-Net backbone and put the head behind a
+  clean interface. One head is a plain convolution, the baseline. The other is our spectral head.
+  Same backbone, two heads, so any difference in the numbers is attributable to the head and nothing
+  else. That control is the point of the whole setup.</p>
+
+  <p><strong>The graph lives at low resolution.</strong> Building the graph is the expensive part, so
+  we build it on a downsampled feature map and upsample the logits back to full size. A pixel grid at
+  full resolution is hundreds of thousands of nodes. At the bottleneck it is a few thousand, which is
+  tractable and still carries the structure that matters.</p>
+
+  <p><strong>From scratch, but in the right framework.</strong> Every spectral operator, the affinity,
+  the Laplacians, both eigensolvers, the backward pass, is written from first principles. We use
+  PyTorch because the head has to live inside automatic differentiation and run on a GPU, but scipy
+  and numpy appear only as oracles in the tests, never in the forward path. The math is ours, the
+  plumbing is borrowed where borrowing is the sensible call.</p>
+
+  <p><strong>Lanczos for scale.</strong> A dense eigendecomposition is cubic and out of the question
+  past a few thousand nodes. We wrote a from scratch Lanczos solver that returns only the bottom few
+  eigenvectors through matrix vector products, so a sparse graph makes the solve close to linear. It
+  matches the dense answer to machine precision and runs at sixty five thousand nodes in under half a
+  second, where a dense matrix would need thirty four gigabytes just to exist.</p>
+
+  <p><strong>A training detail worth recording.</strong> The consistency loss has to be warmed up. At
+  the start of training the graph is nearly uniform, so a smooth prediction is the same as a uniform
+  one, and the loss happily pins the model to a blank answer. Switch it on only after the features
+  organize and it helps instead of hurts. Small lesson, real consequence.</p>
+
+  <figure>
+    <img src="assets/cheeger_snapshot.png" alt="cheeger predictions and spectral internals">
+    <figcaption>A snapshot from the live training dashboard on a toy scene. Top, the input, the
+    ground truth, and the two heads. Bottom, the internals of the spectral head, the learned response
+    \(h_\theta(\lambda)\) which settled into a low pass shape on its own, the Laplacian spectrum, and
+    the embedding with classes pulling apart along the Fiedler coordinate.</figcaption>
+  </figure>
+</section>
+
+<!-- 11 -->
+<section id="experiments">
+  <h2><span class="num">11 — experiments</span>What we have measured</h2>
+
+  <p>The system runs and the pieces have been exercised. Two results stand in for the rest. A
+  controlled comparison of the two heads on a single scene, the kind of thing the live dashboard shows
+  during training, and the scaling behaviour of the eigensolver, which decides whether any of this is
+  usable at real resolution.</p>
+
+  <figure>
+    <img src="assets/training_curves.png" alt="training curves, conv versus spectral head">
+    <figcaption>Both heads trained to overfit one toy scene. The convolution reaches a perfect fit
+    almost at once. The spectral head sits on a plateau, then breaks through.</figcaption>
+  </figure>
+
+  <p>The two heads behave very differently, and the difference is the interesting part. The
+  convolution labels each pixel on its own, so it fits immediately. The spectral head has to earn its
+  representation. At the start the graph is nearly uniform and the bottom eigenvectors carry no usable
+  signal, so the loss barely moves. Once the backbone organizes its features the graph clusters, the
+  eigenvectors snap into place, and the model breaks through. It has to build the structure before it
+  can use it. This is also why the consistency loss is warmed up rather than switched on at step
+  zero.</p>
+
+  <figure>
+    <img src="assets/scale.png" alt="dense eigh versus sparse Lanczos scaling">
+    <figcaption>Time to compute the bottom sixteen eigenpairs as the graph grows. Dense
+    decomposition is cubic and runs out of memory past a few thousand nodes. Lanczos stays in the tens
+    to hundreds of milliseconds to sixty five thousand nodes, matching the dense answer to machine
+    precision.</figcaption>
+  </figure>
+
+  <p>The scaling result is what makes the spectral head practical rather than a toy. A dense
+  decomposition cannot even allocate its matrix past a few thousand nodes. Lanczos returns the same
+  bottom eigenvectors, to fifteen digits, in a small fraction of the time, at sizes the dense solve
+  cannot reach. Everything on this page runs locally on a laptop with no GPU. A live version of these
+  curves streams to a dashboard while training, and the full picture of predictions and spectral
+  internals together is in the snapshot above.</p>
+</section>
+
+<!-- 12 -->
+<section id="status">
+  <h2><span class="num">12 — where we are</span>Progress and what is left</h2>
+
+  <p>The mathematical core is built and verified, the model runs, and the scale problem is solved.
+  What remains is the data pipeline and the experiment that turns this from a working system into a
+  result.</p>
+
+  <div class="phases">
+    <div class="phase done"><span class="dot"></span><div><div class="t">Spectral core</div><div class="d">affinity, Laplacian variants, a from scratch eigensolver checked against numpy</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Differentiable layer</div><div class="d">broadened gradients, learned response, the noise floor, all gradient checked</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Losses and metrics</div><div class="d">cross entropy and the Rayleigh term, mIoU and boundary scores checked against sklearn</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Model and heads</div><div class="d">U-Net with the conv and spectral heads, proven by overfitting one image, with a live dashboard</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Scale</div><div class="d">sparse Lanczos, machine precision against dense, sixty five thousand nodes in half a second</div></div><span class="tag">done</span></div>
+    <div class="phase now"><span class="dot"></span><div><div class="t">Data pipeline</div><div class="d">a toy driving set for fast iteration, then the Cityscapes loader</div></div><span class="tag">next</span></div>
+    <div class="phase todo"><span class="dot"></span><div><div class="t">Training engine</div><div class="d">the config and trainer that ties model, loss and metrics together</div></div><span class="tag">to do</span></div>
+    <div class="phase todo"><span class="dot"></span><div><div class="t">The experiment</div><div class="d">does the spectral head beat the conv head on driving imagery, and does \(h_\theta\) recover the noise edge on its own</div></div><span class="tag">to do</span></div>
+  </div>
+
+  <p>The plan from here is deliberately staged. Prove the head learns on a single image locally,
+  which it already does. Run a small Cityscapes loop on a free cloud GPU to shake out the training
+  pipeline. Then the full benchmark on a rented GPU, three seeds, a paired test against the
+  convolution baseline, and the one question the whole project is built to answer. When a network is
+  free to choose how to weight a graph spectrum for segmentation, does it rediscover the structure
+  that random matrix theory predicts, or does it find something better.</p>
+
+  <p>That is the experiment we are walking toward. The groundwork underneath it is done.</p>
+</section>
+
+<hr class="s">
+
+<section id="references" class="refs">
+  <h2><span class="num">sources</span>References</h2>
+  <p>The classical foundations, and the threads we pull from outside segmentation.</p>
+  <ol>
+    <li>M. Fiedler. <b>Algebraic connectivity of graphs.</b> Czechoslovak Mathematical Journal, 1973.</li>
+    <li>J. Cheeger. <b>A lower bound for the smallest eigenvalue of the Laplacian.</b> Problems in Analysis, 1970.</li>
+    <li>J. Shi and J. Malik. <b>Normalized cuts and image segmentation.</b> IEEE TPAMI, 2000.</li>
+    <li>A. Ng, M. Jordan, Y. Weiss. <b>On spectral clustering: analysis and an algorithm.</b> NeurIPS, 2002.</li>
+    <li>U. von Luxburg. <b>A tutorial on spectral clustering.</b> Statistics and Computing, 2007.</li>
+    <li>M. Belkin and P. Niyogi. <b>Laplacian eigenmaps for dimensionality reduction and data representation.</b> Neural Computation, 2003.</li>
+    <li>R. Coifman and S. Lafon. <b>Diffusion maps.</b> Applied and Computational Harmonic Analysis, 2006.</li>
+    <li>C. Lanczos. <b>An iteration method for the solution of the eigenvalue problem of linear differential and integral operators.</b> J. Research NBS, 1950.</li>
+    <li>V. Marchenko and L. Pastur. <b>Distribution of eigenvalues for some sets of random matrices.</b> Mathematics of the USSR Sbornik, 1967.</li>
+    <li>J. Baik, G. Ben Arous, S. Péché. <b>Phase transition of the largest eigenvalue for non-null complex sample covariance matrices.</b> Annals of Probability, 2005.</li>
+    <li>J. Bruna, W. Zaremba, A. Szlam, Y. LeCun. <b>Spectral networks and locally connected networks on graphs.</b> ICLR, 2014.</li>
+    <li>M. Defferrard, X. Bresson, P. Vandergheynst. <b>Convolutional neural networks on graphs with fast localized spectral filtering.</b> NeurIPS, 2016.</li>
+    <li>C. Ionescu, O. Vantzos, C. Sminchisescu. <b>Matrix backpropagation for deep networks with structured layers.</b> ICCV, 2015.</li>
+    <li>W. Wang, Z. Dang, Y. Hu, P. Fua, M. Salzmann. <b>Backpropagation-friendly eigendecomposition.</b> NeurIPS, 2019.</li>
+    <li>M. Caron et al. <b>Emerging properties in self-supervised vision transformers (DINO).</b> ICCV, 2021.</li>
+    <li>L. Melas-Kyriazi, C. Rupprecht, A. Vedaldi. <b>Deep spectral methods: a surprisingly strong baseline for unsupervised semantic segmentation.</b> CVPR, 2022.</li>
+    <li>M. Berman, A. Triki, M. Blaschko. <b>The Lovász-Softmax loss: a tractable surrogate for the optimization of the IoU measure.</b> CVPR, 2018.</li>
+    <li>B. Cheng, R. Girshick, P. Dollár, A. Berg, A. Kirillov. <b>Boundary IoU: improving object-centric image segmentation evaluation.</b> CVPR, 2021.</li>
+  </ol>
+</section>
+
+</article>
+
+<div class="footer">
+  cheeger · a differentiable spectral embedding for dense segmentation · built from scratch in pytorch<br>
+  the core library is named fiedler, after the vector that started all of this.
+</div>
+
+</div>
+</body>
+</html>
