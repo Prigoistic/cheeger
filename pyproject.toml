@@ -28,6 +28,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["float32: run the test with float32 as the default dtype (model/training tests)"]
 
 [tool.ruff]
 line-length = 100
