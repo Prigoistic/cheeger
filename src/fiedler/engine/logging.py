@@ -76,6 +76,13 @@ class ExperimentLogger:
         if self._wandb:
             self._wandb.log({tag: wandb.Image(chw.permute(1, 2, 0).cpu().numpy()), "step": step})
 
+    def log_figure(self, tag: str, fig, step: int) -> None:
+        """Log a matplotlib figure (spectral panels: h_θ(λ), spectrum, embedding)."""
+        if self._tb:
+            self._tb.add_figure(tag, fig, step)
+        if self._wandb:
+            self._wandb.log({tag: wandb.Image(fig), "step": step})
+
     def log_seg(
         self,
         tag: str,
@@ -92,6 +99,11 @@ class ExperimentLogger:
             img = img / 255.0
         strip = torch.cat([img, from_palette(gt), from_palette(pred)], dim=2)  # along width
         self.log_image(tag, strip, step)
+
+    def flush(self) -> None:
+        """Push buffered events to disk so a live dashboard sees them immediately."""
+        if self._tb:
+            self._tb.flush()
 
     def close(self) -> None:
         if self._tb:
