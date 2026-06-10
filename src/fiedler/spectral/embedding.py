@@ -19,6 +19,7 @@ from torch import Tensor, nn
 
 from ..graph.laplacian import gaussian_affinity, laplacian
 from .diffeig import smallest_k
+from .lanczos import lanczos_smallest_k
 from .response import SpectralResponse
 
 
@@ -33,12 +34,25 @@ class SpectralEmbedding(nn.Module):
         metric_dim: int | None = None,
         response: SpectralResponse | None = None,
         eig_eps: float = 1e-6,
+        solver: str = "dense",
+        lanczos_m: int | None = None,
     ):
+        """
+        solver : "dense" uses a full differentiable eigh (exact, O(n³); fine up to a
+                 couple thousand nodes). "lanczos" computes only the bottom-k through
+                 mat-vecs, so the head runs at larger graph resolutions; set
+                 ``lanczos_m`` (the Krylov dim) higher for accuracy on clustered
+                 low spectra (default ``max(4k+40, 60)``).
+        """
         super().__init__()
+        if solver not in ("dense", "lanczos"):
+            raise ValueError(f"unknown solver {solver!r}")
         self.k = k
         self.kind = laplacian_kind
         self.knn = knn
         self.eig_eps = eig_eps
+        self.solver = solver
+        self.lanczos_m = lanczos_m
 
         log_sigma = torch.log(torch.tensor(float(sigma_init)))
         if learn_sigma:
@@ -65,7 +79,10 @@ class SpectralEmbedding(nn.Module):
         metric = self.metric.abs() if self.metric is not None else None  # keep PSD
         W = gaussian_affinity(features, sigma=self.sigma, k=self.knn, metric=metric)
         L = laplacian(W, kind=self.kind)
-        eigvals, eigvecs = smallest_k(L, self.k, eps=self.eig_eps)
+        if self.solver == "lanczos":
+            eigvals, eigvecs = lanczos_smallest_k(L, self.k, m=self.lanczos_m, eps=self.eig_eps)
+        else:
+            eigvals, eigvecs = smallest_k(L, self.k, eps=self.eig_eps)
         h = self.response(eigvals)
         phi = eigvecs * h.unsqueeze(0)
         return {"phi": phi, "eigvals": eigvals, "eigvecs": eigvecs,

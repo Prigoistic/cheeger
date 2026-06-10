@@ -42,7 +42,8 @@ class SpectralSegHead(nn.Module):
     def __init__(self, in_channels: int, num_classes: int, k: int = 16,
                  graph_hw: int = 32, knn: int = 16, laplacian_kind: str = "sym",
                  learn_sigma: bool = True, learn_metric: bool = True,
-                 sigma_init: float = 1.0, mlp_hidden: int = 64):
+                 sigma_init: float = 1.0, mlp_hidden: int = 64,
+                 solver: str = "dense", lanczos_m: int | None = None):
         super().__init__()
         self.graph_hw = graph_hw
         self.num_classes = num_classes
@@ -50,6 +51,7 @@ class SpectralSegHead(nn.Module):
             k=k, laplacian_kind=laplacian_kind, knn=knn,
             metric_dim=in_channels if learn_metric else None,
             learn_sigma=learn_sigma, sigma_init=sigma_init,
+            solver=solver, lanczos_m=lanczos_m,
         )
         self.classifier = nn.Sequential(
             nn.Linear(k, mlp_hidden), nn.GELU(), nn.Linear(mlp_hidden, num_classes)

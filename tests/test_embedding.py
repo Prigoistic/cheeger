@@ -81,6 +81,31 @@ def _kmeans2(X, iters=50):
     return assign
 
 
+def test_lanczos_solver_matches_dense_embedding():
+    """On a connected graph (distinct bottom eigenvalues — the realistic head case)
+    the lanczos solver path matches dense eigh on the bottom-k eigenvalues."""
+    torch.manual_seed(0)
+    X = torch.randn(120, 8)                                   # connected k-NN graph
+    common = dict(k=6, knn=12, learn_sigma=False, sigma_init=1.5)
+    dense = SpectralEmbedding(**common, solver="dense")
+    lanc = SpectralEmbedding(**common, solver="lanczos", lanczos_m=90)
+    lanc.load_state_dict(dense.state_dict())                  # only the solver differs
+    od, ol = dense(X), lanc(X)
+    assert torch.allclose(od["eigvals"], ol["eigvals"], atol=1e-5), \
+        (od["eigvals"] - ol["eigvals"]).abs().max()
+
+
+def test_lanczos_solver_is_differentiable():
+    torch.manual_seed(0)
+    X = torch.randn(60, 5, requires_grad=True)
+    emb = SpectralEmbedding(k=4, knn=8, metric_dim=5, solver="lanczos", lanczos_m=40)
+    out = emb(X)
+    out["phi"].pow(2).sum().backward()
+    ft.assert_finite(X.grad, "X.grad (lanczos)")
+    assert X.grad.abs().sum() > 0
+    assert emb.metric.grad is not None and emb.metric.grad.abs().sum() > 0
+
+
 def test_embedding_separates_planted_clusters():
     """The learned embedding places two well-separated blobs into two clusters in
     spectral-coordinate space (k-means on the embedding rows — the correct use of a
