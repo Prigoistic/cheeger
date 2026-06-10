@@ -29,8 +29,8 @@ results/**
 *.png
 *.jpg
 !visualizers/**/*.png
-# published blog figures (served by GitHub Pages)
-!docs/assets/*.png
+# published blog figures (served by GitHub Pages from repo root)
+!assets/*.png
 
 # tooling
 .pytest_cache/
