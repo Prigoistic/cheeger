@@ -26,6 +26,27 @@ import torch
 from torch import Tensor
 
 
+def eig_backward(evals: Tensor, evecs: Tensor, g_evals: Tensor | None,
+                 g_evecs: Tensor | None, eps: float) -> Tensor:
+    """Gradient w.r.t. a symmetric matrix given gradients on its eigenpairs, using
+    the Lorentzian-broadened gap reciprocal. Shared by the dense (`broadened_eigh`)
+    and Lanczos (`lanczos_smallest_k`) solvers. With a truncated set of ``k`` pairs
+    (Lanczos) this is the rank-k approximation of the true gradient; with the full
+    basis it is exact.
+
+        Ā = U ( diag(ḡλ) + F ∘ (Uᵀ ḡU) ) Uᵀ ,  F_ij = (λ_j−λ_i)/((λ_j−λ_i)²+ε²)
+    """
+    diff = evals.unsqueeze(0) - evals.unsqueeze(1)     # diff[i,j] = λ_j − λ_i
+    F = diff / (diff * diff + eps * eps)               # 0 on the diagonal automatically
+    M = evecs.new_zeros((evecs.shape[1], evecs.shape[1]))
+    if g_evals is not None:
+        M = M + torch.diag(g_evals)
+    if g_evecs is not None:
+        M = M + F * (evecs.t() @ g_evecs)
+    A_bar = evecs @ M @ evecs.t()
+    return 0.5 * (A_bar + A_bar.t())                   # input is symmetric
+
+
 class _BroadenedEigh(torch.autograd.Function):
     @staticmethod
     def forward(ctx, A: Tensor, eps: float):
@@ -38,22 +59,7 @@ class _BroadenedEigh(torch.autograd.Function):
     @staticmethod
     def backward(ctx, g_evals: Tensor | None, g_evecs: Tensor | None):
         evals, evecs = ctx.saved_tensors
-        eps = ctx.eps
-        n = evals.shape[0]
-
-        # diff[i, j] = λ_j − λ_i ; broadened reciprocal (0 on the diagonal automatically)
-        diff = evals.unsqueeze(0) - evals.unsqueeze(1)
-        F = diff / (diff * diff + eps * eps)
-
-        M = evecs.new_zeros((n, n))
-        if g_evals is not None:
-            M = M + torch.diag(g_evals)
-        if g_evecs is not None:
-            M = M + F * (evecs.t() @ g_evecs)
-
-        A_bar = evecs @ M @ evecs.t()
-        A_bar = 0.5 * (A_bar + A_bar.t())            # input is symmetric
-        return A_bar, None
+        return eig_backward(evals, evecs, g_evals, g_evecs, ctx.eps), None
 
 
 def broadened_eigh(A: Tensor, eps: float = 1e-8) -> tuple[Tensor, Tensor]:
