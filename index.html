@@ -608,29 +608,51 @@ MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, sv
 <section id="status">
   <h2><span class="num">12 — where we are</span>Progress and what is left</h2>
 
-  <p>The mathematical core is built and verified, the model runs, and the scale problem is solved.
-  What remains is the data pipeline and the experiment that turns this from a working system into a
-  result.</p>
+  <p>The full infrastructure is built and the entire pipeline runs end to end. The one thing that
+  does not yet exist is a result on real data — that requires a GPU training run on Cityscapes, which
+  is the remaining step.</p>
 
   <div class="phases">
-    <div class="phase done"><span class="dot"></span><div><div class="t">Spectral core</div><div class="d">affinity, Laplacian variants, a from scratch eigensolver checked against numpy</div></div><span class="tag">done</span></div>
-    <div class="phase done"><span class="dot"></span><div><div class="t">Differentiable layer</div><div class="d">broadened gradients, learned response, the noise floor, all gradient checked</div></div><span class="tag">done</span></div>
-    <div class="phase done"><span class="dot"></span><div><div class="t">Losses and metrics</div><div class="d">cross entropy and the Rayleigh term, mIoU and boundary scores checked against sklearn</div></div><span class="tag">done</span></div>
-    <div class="phase done"><span class="dot"></span><div><div class="t">Model and heads</div><div class="d">U-Net with the conv and spectral heads, proven by overfitting one image, with a live dashboard</div></div><span class="tag">done</span></div>
-    <div class="phase done"><span class="dot"></span><div><div class="t">Scale</div><div class="d">sparse Lanczos, machine precision against dense, sixty five thousand nodes in half a second</div></div><span class="tag">done</span></div>
-    <div class="phase now"><span class="dot"></span><div><div class="t">Data pipeline</div><div class="d">a toy driving set for fast iteration, then the Cityscapes loader</div></div><span class="tag">next</span></div>
-    <div class="phase todo"><span class="dot"></span><div><div class="t">Training engine</div><div class="d">the config and trainer that ties model, loss and metrics together</div></div><span class="tag">to do</span></div>
-    <div class="phase todo"><span class="dot"></span><div><div class="t">The experiment</div><div class="d">does the spectral head beat the conv head on driving imagery, and does \(h_\theta\) recover the noise edge on its own</div></div><span class="tag">to do</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Spectral core</div><div class="d">affinity (Gaussian + learned anisotropic metric), three Laplacian variants, from-scratch Jacobi eigensolver validated against numpy to 1e-13</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Differentiable eigensolver + spectral filter</div><div class="d">Lorentzian-broadened gradient, learned h_θ(λ) response (MLP + Chebyshev), Marchenko-Pastur noise floor — all gradient-checked with torch.autograd.gradcheck</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Sparse Lanczos solver</div><div class="d">bottom-k eigenpairs via Krylov subspace + full reorthogonalisation; matches dense to 1e-15; 65k nodes in 0.47s; wired into the head as a solver option</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Losses and metrics</div><div class="d">cross-entropy + optional OHEM/Lovász; Rayleigh spectral-consistency loss with warmup schedule; mIoU, boundary-IoU, boundary-F, trimap — all validated against sklearn</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">U-Net + swappable heads</div><div class="d">from-scratch U-Net backbone; ConvHead (1×1 conv baseline) and SpectralSegHead sharing the same interface; conv head overfits one image to mIoU 1.0; spectral head shows the characteristic plateau-then-breakthrough learning curve</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Data pipeline</div><div class="d">synthetic driving dataset (7 Cityscapes classes, deterministic by seed); Cityscapes loader with the official 34→19 trainId remap; joint crop/flip/resize/normalise transforms</div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Training engine</div><div class="d">typed config (dataclasses ↔ YAML), device-agnostic Trainer with Rayleigh warmup, checkpointing and TensorBoard logging; <code>scripts/train.py</code> and <code>scripts/benchmark.py</code></div></div><span class="tag">done</span></div>
+    <div class="phase done"><span class="dot"></span><div><div class="t">Visualisers and demos</div><div class="d">training dashboard (conv vs spectral, live TensorBoard); static snapshot panel; feature-similarity heatmap from a static image; live webcam spectral embedding viewer with self-attention diffusion mode</div></div><span class="tag">done</span></div>
+    <div class="phase now"><span class="dot"></span><div><div class="t">Real benchmark — Cityscapes on GPU</div><div class="d">conv head vs spectral head, same backbone, 3 seeds, mIoU + boundary-IoU; requires GPU (MPS does not support eigh); Colab T4 for the first run, then a rented instance for the full benchmark</div></div><span class="tag">next</span></div>
   </div>
 
-  <p>The plan from here is deliberately staged. Prove the head learns on a single image locally,
-  which it already does. Run a small Cityscapes loop on a free cloud GPU to shake out the training
-  pipeline. Then the full benchmark on a rented GPU, three seeds, a paired test against the
-  convolution baseline, and the one question the whole project is built to answer. When a network is
-  free to choose how to weight a graph spectrum for segmentation, does it rediscover the structure
-  that random matrix theory predicts, or does it find something better.</p>
+  <h3>The live demo and why it looks noisy without training</h3>
+  <p>Two demos ship that let you interact with the spectral embedding before any training has
+  happened. <code>demos/similarity_map.py</code> takes a static image and a query pixel, builds a
+  k-NN affinity graph from 7-dimensional handcrafted features (mean colour, local texture variance,
+  gradient magnitude), runs the spectral embedding, and colours every pixel by its cosine similarity
+  to the query in embedding space. <code>demos/live_similarity.py</code> does the same on a live
+  webcam feed at around 5-10 Hz.</p>
 
-  <p>That is the experiment we are walking toward. The groundwork underneath it is done.</p>
+  <p>Without training, the backbone is either random noise (U-Net mode) or the raw handcrafted
+  features. The spectral embedding still finds genuine geometric structure in those features — colour
+  coherence, texture, edges — and the similarity map is interpretable if not semantic. Click a patch
+  of sky and other sky-coloured patches light up; click a road surface and road lights up. That is the
+  graph doing real work on local appearance, not semantics.</p>
+
+  <p>The jump once the backbone is trained is not incremental. DINO's self-supervised ViT features,
+  which are produced entirely without labels, already give near-perfect semantic segmentation when fed
+  into exactly this kind of spectral pipeline. The reason is that a well-trained backbone organises
+  its features so that semantically identical patches map to similar points in feature space,
+  regardless of position. When that is the input to the graph, the affinity matrix clusters cleanly
+  by class, the bottom eigenvectors become class indicators, and the spectral embedding separates
+  categories that a pixel-independent classifier would confuse. Our addition — the learned spectral
+  filter and the Rayleigh consistency loss trained against labels — goes beyond that unsupervised
+  result by explicitly shaping the weighting of the spectrum toward the segmentation objective.</p>
+
+  <p>The planned run is: Colab T4 to verify the training loop on a Cityscapes subset, then a rented
+  GPU for the full benchmark across three seeds. The comparison that answers the paper's central
+  question is conv head versus spectral head, same backbone, same schedule, same data — with
+  boundary-IoU as the primary differentiator because the spectral head's global-connectivity claim
+  should show most clearly at boundaries.</p>
 </section>
 
 <hr class="s">
