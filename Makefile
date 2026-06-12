@@ -1,4 +1,4 @@
-.PHONY: install validate test stress lint demo clean
+.PHONY: install validate test stress lint demo simmap clean
 
 install:        ## editable install of the fiedler package
 	pip install -e ".[dev,data]"
@@ -17,6 +17,9 @@ lint:           ## static checks
 
 demo:           ## run the Fiedler partition demo (writes a figure to results/)
 	python3 demos/fiedler_partition.py
+
+simmap:         ## feature-similarity heatmap (pass IMAGE= and QUERY="r c" to customise)
+	python3 demos/similarity_map.py $(if $(IMAGE),--image $(IMAGE),) $(if $(QUERY),--query $(QUERY),)
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
