@@ -21,6 +21,9 @@ demo:           ## run the Fiedler partition demo (writes a figure to results/)
 simmap:         ## feature-similarity heatmap (pass IMAGE= and QUERY="r c" to customise)
 	python3 demos/similarity_map.py $(if $(IMAGE),--image $(IMAGE),) $(if $(QUERY),--query $(QUERY),)
 
+live:           ## live webcam similarity heatmap — 24×24 graph, auto-range, n/c/s keys
+	python3 demos/live_similarity.py
+
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf .pytest_cache .ruff_cache *.egg-info src/*.egg-info
