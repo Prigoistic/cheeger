@@ -79,5 +79,5 @@ on CPU/MPS; move to a GPU only for full Cityscapes training.
 - [x] **Phase 2** — segmentation metrics (mIoU/per-class/accuracies + Boundary-IoU/BF/trimap,
       sklearn-validated) and losses (CE + class weights + optional OHEM/Lovász;
       Rayleigh spectral-consistency + MP `bulk_penalty` via `CompositeLoss`)
-- [ ] Phase 3 — U-Net backbone + spectral/conv heads + Cityscapes
-- [ ] Phase 4 — training engine + benchmarks
+- [x] **Phase 3** — U-Net backbone + ConvHead/SpectralSegHead + Cityscapes loader + toy dataset
+- [x] **Phase 4** — typed Config, device-agnostic Trainer, `scripts/train.py` + `scripts/benchmark.py` (smoke-tested end-to-end)
